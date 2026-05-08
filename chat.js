@@ -1,12 +1,12 @@
 const chats = [
   {
     id: 1,
-    name: "Maya",
+    name: "farris",
     type: "DM",
     online: true,
     messages: [
-      { sender: "them", text: "Are we still studying tonight?", time: "4:21 PM" },
-      { sender: "me", text: "Yeah, I’ll send the notes soon.", time: "4:22 PM" },
+      { sender: "them", text: "Lucente is going to make it", time: "4:21 PM" },
+      { sender: "me", text: "Yeah.", time: "4:22 PM" },
       { sender: "them", text: "This mode switching idea is actually cool.", time: "4:23 PM" }
     ]
   },
