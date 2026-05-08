@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile | Vyntra Connect</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="core-mode">
+  <div class="profile-page">
+    <div class="panel profile-card">
+      <a href="app.html" class="back-link">← Back to App</a>
+
+      <div class="profile-top">
+        <div class="big-avatar" id="avatarLetter">V</div>
+
+        <div>
+          <h1 id="profileName">User</h1>
+          <p id="profileUsername">@username</p>
+        </div>
+      </div>
+
+      <div class="profile-section">
+        <h2>Bio</h2>
+        <textarea id="bioInput" placeholder="Write your bio..."></textarea>
+      </div>
+
+      <div class="profile-section">
+        <h2>Profile Theme</h2>
+
+        <div class="theme-grid">
+          <button class="theme-option">Core</button>
+          <button class="theme-option">Pulse</button>
+          <button class="theme-option">Neon</button>
+          <button class="theme-option">Cozy</button>
+        </div>
+      </div>
+
+      <div class="profile-section">
+        <h2>Stats</h2>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <strong>12</strong>
+            <span>Chats</span>
+          </div>
+
+          <div class="stat-box">
+            <strong>4</strong>
+            <span>Communities</span>
+          </div>
+
+          <div class="stat-box">
+            <strong>1</strong>
+            <span>Modes Shared</span>
+          </div>
+        </div>
+      </div>
+
+      <button id="saveProfileBtn" class="primary-btn full">
+        Save Profile
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const savedUser = JSON.parse(localStorage.getItem("vyntraUser"));
+
+    if (!savedUser) {
+      window.location.href = "login.html";
+    }
+
+    document.getElementById("profileName").textContent = savedUser.name;
+    document.getElementById("profileUsername").textContent = "@" + savedUser.username;
+    document.getElementById("avatarLetter").textContent =
+      savedUser.name.charAt(0).toUpperCase();
+
+    const bioInput = document.getElementById("bioInput");
+
+    bioInput.value = localStorage.getItem("vyntraBio") || "";
+
+    document
+      .getElementById("saveProfileBtn")
+      .addEventListener("click", () => {
+        localStorage.setItem("vyntraBio", bioInput.value);
+        alert("Profile saved.");
+      });
+  </script>
+</body>
+</html>
