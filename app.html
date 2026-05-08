@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App | Vyntra Connect</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="app-page core-mode">
+  <div id="tutorial" class="tutorial-overlay">
+    <div class="tutorial-card">
+      <h1>Welcome to Vyntra Connect</h1>
+      <p>
+        Switch modes, open chats, send messages, and explore communities.
+        This is Version 1 with local demo data.
+      </p>
+      <button id="closeTutorial" class="primary-btn full">Start Using Vyntra</button>
+    </div>
+  </div>
+
+  <header class="app-header">
+    <div>
+      <h1>Vyntra Connect</h1>
+      <p id="userLabel">@founder</p>
+    </div>
+
+    <div class="mode-switcher">
+      <button data-mode="core" class="mode-btn active">Core</button>
+      <button data-mode="pulse" class="mode-btn">Pulse</button>
+      <button data-mode="neon" class="mode-btn">Neon</button>
+      <button data-mode="cozy" class="mode-btn">Cozy</button>
+    </div>
+  </header>
+
+  <main class="app-layout">
+    <aside class="sidebar panel">
+      <div class="sidebar-title">
+        <h2>Chats</h2>
+        <button class="icon-btn">+</button>
+      </div>
+
+      <input id="searchInput" class="search-input" type="text" placeholder="Search chats..." />
+
+      <div id="chatList" class="chat-list"></div>
+    </aside>
+
+    <section class="chat-panel panel">
+      <div class="chat-top">
+        <div>
+          <h2 id="activeChatName">Maya</h2>
+          <p id="activeChatStatus">Online • Core Mode</p>
+        </div>
+
+        <div class="chat-actions">
+          <button class="icon-btn">🔔</button>
+          <button class="icon-btn">⚙</button>
+        </div>
+      </div>
+
+      <div id="messageArea" class="message-area"></div>
+
+      <div class="message-input-wrap">
+        <button class="icon-btn">+</button>
+        <input id="messageInput" type="text" placeholder="Type a message..." />
+        <button id="sendBtn" class="send-btn">Send</button>
+      </div>
+    </section>
+
+    <aside class="rightbar">
+      <div class="panel">
+        <h2>Current Mode</h2>
+        <div id="modeCard" class="current-mode-card">
+          <h3>Core</h3>
+          <p>Clean, simple, everyday chat.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Communities</h2>
+        <div class="community-list">
+          <button>Theme Lab <span>Join</span></button>
+          <button>Student Hub <span>Join</span></button>
+          <button>Gaming Lounge <span>Join</span></button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Discover</h2>
+        <p class="muted">Find public profiles, communities, and shared designs.</p>
+        <button class="secondary-btn full">Explore</button>
+      </div>
+
+      <div class="panel">
+        <h2>Profile</h2>
+        <p id="profilePreview" class="muted">@founder</p>
+        <button id="logoutBtn" class="danger-btn full">Logout</button>
+      </div>
+    </aside>
+  </main>
+
+  <script src="chat.js"></script>
+</body>
+</html>

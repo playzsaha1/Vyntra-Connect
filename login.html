@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Vyntra Connect</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <a href="index.html" class="back-link">← Back</a>
+
+    <h1>Welcome to Vyntra</h1>
+    <p>Create your profile and enter the platform.</p>
+
+    <form id="loginForm">
+      <input id="nameInput" type="text" placeholder="Display name" required />
+      <input id="usernameInput" type="text" placeholder="Username" required />
+      <input id="emailInput" type="email" placeholder="Email" required />
+      <input id="passwordInput" type="password" placeholder="Password" required />
+
+      <button type="submit" class="primary-btn full">Enter Vyntra</button>
+    </form>
+
+    <p class="small-text">
+      Version 1 uses local demo login. Firebase Auth comes next.
+    </p>
+  </div>
+
+  <script>
+    const form = document.getElementById("loginForm");
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const user = {
+        name: document.getElementById("nameInput").value.trim(),
+        username: document.getElementById("usernameInput").value.trim(),
+        email: document.getElementById("emailInput").value.trim()
+      };
+
+      localStorage.setItem("vyntraUser", JSON.stringify(user));
+      window.location.href = "app.html";
+    });
+  </script>
+</body>
+</html>
