@@ -834,4 +834,8 @@ footer {
   .message-row {
     max-width: 88%;
   }
+  
+  .panel .secondary-btn + .danger-btn {
+  margin-top: 10px;
+  }
 }

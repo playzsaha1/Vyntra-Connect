@@ -6,15 +6,21 @@
   <title>App | Vyntra Connect</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body class="app-page core-mode">
+
   <div id="tutorial" class="tutorial-overlay">
     <div class="tutorial-card">
       <h1>Welcome to Vyntra Connect</h1>
+
       <p>
         Switch modes, open chats, send messages, and explore communities.
         This is Version 1 with local demo data.
       </p>
-      <button id="closeTutorial" class="primary-btn full">Start Using Vyntra</button>
+
+      <button id="closeTutorial" class="primary-btn full">
+        Start Using Vyntra
+      </button>
     </div>
   </div>
 
@@ -33,71 +39,153 @@
   </header>
 
   <main class="app-layout">
+
+    <!-- LEFT SIDEBAR -->
+
     <aside class="sidebar panel">
+
       <div class="sidebar-title">
         <h2>Chats</h2>
         <button class="icon-btn">+</button>
       </div>
 
-      <input id="searchInput" class="search-input" type="text" placeholder="Search chats..." />
+      <input
+        id="searchInput"
+        class="search-input"
+        type="text"
+        placeholder="Search chats..."
+      />
 
       <div id="chatList" class="chat-list"></div>
+
     </aside>
 
+    <!-- MAIN CHAT -->
+
     <section class="chat-panel panel">
+
       <div class="chat-top">
+
         <div>
           <h2 id="activeChatName">Maya</h2>
-          <p id="activeChatStatus">Online • Core Mode</p>
+
+          <p id="activeChatStatus">
+            Online • Core Mode
+          </p>
         </div>
 
         <div class="chat-actions">
           <button class="icon-btn">🔔</button>
           <button class="icon-btn">⚙</button>
         </div>
+
       </div>
 
       <div id="messageArea" class="message-area"></div>
 
       <div class="message-input-wrap">
+
         <button class="icon-btn">+</button>
-        <input id="messageInput" type="text" placeholder="Type a message..." />
-        <button id="sendBtn" class="send-btn">Send</button>
+
+        <input
+          id="messageInput"
+          type="text"
+          placeholder="Type a message..."
+        />
+
+        <button id="sendBtn" class="send-btn">
+          Send
+        </button>
+
       </div>
+
     </section>
 
+    <!-- RIGHT SIDEBAR -->
+
     <aside class="rightbar">
+
+      <!-- CURRENT MODE -->
+
       <div class="panel">
+
         <h2>Current Mode</h2>
+
         <div id="modeCard" class="current-mode-card">
           <h3>Core</h3>
           <p>Clean, simple, everyday chat.</p>
         </div>
+
       </div>
 
+      <!-- COMMUNITIES -->
+
       <div class="panel">
+
         <h2>Communities</h2>
+
         <div class="community-list">
-          <button>Theme Lab <span>Join</span></button>
-          <button>Student Hub <span>Join</span></button>
-          <button>Gaming Lounge <span>Join</span></button>
+
+          <button>
+            Theme Lab
+            <span>Join</span>
+          </button>
+
+          <button>
+            Student Hub
+            <span>Join</span>
+          </button>
+
+          <button>
+            Gaming Lounge
+            <span>Join</span>
+          </button>
+
         </div>
+
       </div>
 
+      <!-- DISCOVER -->
+
       <div class="panel">
+
         <h2>Discover</h2>
-        <p class="muted">Find public profiles, communities, and shared designs.</p>
-        <button class="secondary-btn full">Explore</button>
+
+        <p class="muted">
+          Find public profiles, communities, and shared designs.
+        </p>
+
+        <a href="discover.html" class="secondary-btn full">
+          Explore
+        </a>
+
       </div>
 
+      <!-- PROFILE -->
+
       <div class="panel">
+
         <h2>Profile</h2>
-        <p id="profilePreview" class="muted">@founder</p>
-        <button id="logoutBtn" class="danger-btn full">Logout</button>
+
+        <p id="profilePreview" class="muted">
+          @founder
+        </p>
+
+        <a href="profile.html" class="secondary-btn full">
+          Open Profile
+        </a>
+
+        <button id="logoutBtn" class="danger-btn full">
+          Logout
+        </button>
+
       </div>
+
     </aside>
+
   </main>
 
   <script src="chat.js"></script>
+
 </body>
 </html>
