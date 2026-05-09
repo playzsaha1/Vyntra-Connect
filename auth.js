@@ -40,9 +40,9 @@ signupBtn.addEventListener("click", async () => {
 
     await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
-      name: name,
-      username: username,
-      email: email,
+      name,
+      username,
+      email,
       createdAt: serverTimestamp()
     });
 
@@ -50,14 +50,22 @@ signupBtn.addEventListener("click", async () => {
       "vyntraUser",
       JSON.stringify({
         uid: user.uid,
-        name: name,
-        username: username,
-        email: email
+        name,
+        username,
+        email
       })
     );
 
     window.location.href = "app.html";
   } catch (error) {
+    if (error.code === "auth/email-already-in-use") {
+      alert("This email already has an account. Please log in instead.");
+      passwordInput.value = "";
+      nameInput.value = "";
+      usernameInput.value = "";
+      return;
+    }
+
     alert(error.message);
   }
 });
