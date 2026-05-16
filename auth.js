@@ -155,4 +155,4 @@ loginBtn.addEventListener("click", async () => {
 
     alert("Login failed: " + error.code + "\n" + error.message);
   }
-});
+});c
