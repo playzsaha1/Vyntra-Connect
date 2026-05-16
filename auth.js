@@ -36,53 +36,44 @@ signupBtn.addEventListener("click", async () => {
   }
 
   try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    signupBtn.textContent = "Creating account...";
+    signupBtn.disabled = true;
 
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    await setDoc(doc(db, "users", user.uid), {
+    const userData = {
       uid: user.uid,
-      name: name,
-      username: username,
-      email: email,
+      name,
+      username,
+      email,
       createdAt: serverTimestamp()
-    });
+    };
+
+    await setDoc(doc(db, "users", user.uid), userData);
 
     localStorage.setItem(
       "vyntraUser",
       JSON.stringify({
         uid: user.uid,
-        name: name,
-        username: username,
-        email: email
+        name,
+        username,
+        email
       })
     );
 
     window.location.href = "app.html";
   } catch (error) {
-    console.error("Signup error:", error.code, error.message);
+    console.error(error);
 
     if (error.code === "auth/email-already-in-use") {
       alert("This email already has an account. Please use Login instead.");
-      passwordInput.value = "";
-      return;
+    } else {
+      alert("Signup failed: " + error.code);
     }
 
-    if (error.code === "auth/invalid-email") {
-      alert("Please enter a valid email address.");
-      return;
-    }
-
-    if (error.code === "auth/weak-password") {
-      alert("Password must be at least 6 characters.");
-      return;
-    }
-
-    alert("Signup failed: " + error.code + "\n" + error.message);
+    signupBtn.textContent = "Sign Up";
+    signupBtn.disabled = false;
   }
 });
 
@@ -96,32 +87,33 @@ loginBtn.addEventListener("click", async () => {
   }
 
   try {
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    loginBtn.textContent = "Logging in...";
+    loginBtn.disabled = true;
 
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    const userRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userRef);
 
-    let userData;
+    let userData = {
+      uid: user.uid,
+      name: user.email.split("@")[0],
+      username: user.email.split("@")[0],
+      email: user.email
+    };
 
-    if (userSnap.exists()) {
-      userData = userSnap.data();
-    } else {
-      userData = {
-        uid: user.uid,
-        name: user.email.split("@")[0],
-        username: user.email.split("@")[0],
-        email: user.email
-      };
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
 
-      await setDoc(userRef, {
-        ...userData,
-        createdAt: serverTimestamp()
-      });
+      if (userSnap.exists()) {
+        userData = userSnap.data();
+      } else {
+        await setDoc(userRef, {
+          ...userData,
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (firestoreError) {
+      console.warn("Firestore profile issue, continuing login:", firestoreError);
     }
 
     localStorage.setItem(
@@ -136,23 +128,15 @@ loginBtn.addEventListener("click", async () => {
 
     window.location.href = "app.html";
   } catch (error) {
-    console.error("Login error:", error.code, error.message);
+    console.error(error);
 
     if (error.code === "auth/invalid-credential") {
       alert("Incorrect email or password.");
-      return;
+    } else {
+      alert("Login failed: " + error.code);
     }
 
-    if (error.code === "auth/user-not-found") {
-      alert("No account found with this email. Please sign up first.");
-      return;
-    }
-
-    if (error.code === "auth/wrong-password") {
-      alert("Incorrect password.");
-      return;
-    }
-
-    alert("Login failed: " + error.code + "\n" + error.message);
+    loginBtn.textContent = "Login";
+    loginBtn.disabled = false;
   }
-});c
+});
