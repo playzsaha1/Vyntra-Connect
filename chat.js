@@ -227,8 +227,8 @@ function getAutoReply() {
   const replies = [
     "That sounds good.",
     "Wait, that’s actually cool.",
-    "Send me more details.",
-    "I like that idea.",
+    "dont talk to me",
+    "no idiot",
     "Let’s test it properly."
   ];
 
