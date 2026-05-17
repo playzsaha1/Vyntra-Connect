@@ -1,12 +1,12 @@
 const chats = [
   {
     id: 1,
-    name: "farris",
+    name: "Maya",
     type: "DM",
     online: true,
     messages: [
-      { sender: "them", text: "Lucente is going to make it", time: "4:21 PM" },
-      { sender: "me", text: "Yeah.", time: "4:22 PM" },
+      { sender: "them", text: "Are we still studying tonight?", time: "4:21 PM" },
+      { sender: "me", text: "Yeah, I’ll send the notes soon.", time: "4:22 PM" },
       { sender: "them", text: "This mode switching idea is actually cool.", time: "4:23 PM" }
     ]
   },
@@ -58,6 +58,10 @@ const modeInfo = {
   cozy: {
     title: "Cozy",
     text: "Warm, calm, personal."
+  },
+  velocity: {
+    title: "Velocity",
+    text: "Fast, animated, energetic, and social."
   }
 };
 
@@ -107,7 +111,14 @@ function applyMode(mode) {
   activeMode = mode;
   localStorage.setItem("vyntraMode", mode);
 
-  body.classList.remove("core-mode", "pulse-mode", "neon-mode", "cozy-mode");
+  body.classList.remove(
+    "core-mode",
+    "pulse-mode",
+    "neon-mode",
+    "cozy-mode",
+    "velocity-mode"
+  );
+
   body.classList.add(`${mode}-mode`);
 
   modeButtons.forEach(button => {
@@ -227,8 +238,8 @@ function getAutoReply() {
   const replies = [
     "That sounds good.",
     "Wait, that’s actually cool.",
-    "dont talk to me",
-    "no idiot",
+    "Send me more details.",
+    "I like that idea.",
     "Let’s test it properly."
   ];
 

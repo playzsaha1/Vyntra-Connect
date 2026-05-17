@@ -35,15 +35,13 @@
       <button data-mode="pulse" class="mode-btn">Pulse</button>
       <button data-mode="neon" class="mode-btn">Neon</button>
       <button data-mode="cozy" class="mode-btn">Cozy</button>
+      <button data-mode="velocity" class="mode-btn">Velocity</button>
     </div>
   </header>
 
   <main class="app-layout">
 
-    <!-- LEFT SIDEBAR -->
-
     <aside class="sidebar panel">
-
       <div class="sidebar-title">
         <h2>Chats</h2>
         <button class="icon-btn">+</button>
@@ -57,34 +55,24 @@
       />
 
       <div id="chatList" class="chat-list"></div>
-
     </aside>
 
-    <!-- MAIN CHAT -->
-
     <section class="chat-panel panel">
-
       <div class="chat-top">
-
         <div>
           <h2 id="activeChatName">Maya</h2>
-
-          <p id="activeChatStatus">
-            Online • Core Mode
-          </p>
+          <p id="activeChatStatus">Online • Core Mode</p>
         </div>
 
         <div class="chat-actions">
           <button class="icon-btn">🔔</button>
           <button class="icon-btn">⚙</button>
         </div>
-
       </div>
 
       <div id="messageArea" class="message-area"></div>
 
       <div class="message-input-wrap">
-
         <button class="icon-btn">+</button>
 
         <input
@@ -96,36 +84,24 @@
         <button id="sendBtn" class="send-btn">
           Send
         </button>
-
       </div>
-
     </section>
-
-    <!-- RIGHT SIDEBAR -->
 
     <aside class="rightbar">
 
-      <!-- CURRENT MODE -->
-
       <div class="panel">
-
         <h2>Current Mode</h2>
 
         <div id="modeCard" class="current-mode-card">
           <h3>Core</h3>
           <p>Clean, simple, everyday chat.</p>
         </div>
-
       </div>
 
-      <!-- COMMUNITIES -->
-
       <div class="panel">
-
         <h2>Communities</h2>
 
         <div class="community-list">
-
           <button>
             Theme Lab
             <span>Join</span>
@@ -140,15 +116,10 @@
             Gaming Lounge
             <span>Join</span>
           </button>
-
         </div>
-
       </div>
 
-      <!-- DISCOVER -->
-
       <div class="panel">
-
         <h2>Discover</h2>
 
         <p class="muted">
@@ -158,13 +129,9 @@
         <a href="discover.html" class="secondary-btn full">
           Explore
         </a>
-
       </div>
 
-      <!-- PROFILE -->
-
       <div class="panel">
-
         <h2>Profile</h2>
 
         <p id="profilePreview" class="muted">
@@ -178,7 +145,6 @@
         <button id="logoutBtn" class="danger-btn full">
           Logout
         </button>
-
       </div>
 
     </aside>
@@ -186,6 +152,5 @@
   </main>
 
   <script type="module" src="chat.js"></script>
-
 </body>
 </html>
