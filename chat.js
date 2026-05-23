@@ -10,18 +10,24 @@ import {
   getDoc,
   setDoc,
   updateDoc,
-  arrayUnion,
+  addDoc,
   collection,
   getDocs,
-  serverTimestamp
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  serverTimestamp,
+  arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const chats = [
+const demoChats = [
   {
-    id: 1,
+    id: "demo-1",
     name: "Maya",
-    type: "DM",
+    type: "Demo",
     online: true,
+    isReal: false,
     messages: [
       { sender: "them", text: "Are we still studying tonight?", time: "4:21 PM" },
       { sender: "me", text: "Yeah, I’ll send the notes soon.", time: "4:22 PM" },
@@ -29,36 +35,19 @@ const chats = [
     ]
   },
   {
-    id: 2,
+    id: "demo-2",
     name: "Family",
-    type: "Group",
+    type: "Demo Group",
     online: false,
+    isReal: false,
     messages: [
       { sender: "them", text: "Dinner at 7?", time: "3:58 PM" },
       { sender: "me", text: "I’ll be home by then.", time: "4:00 PM" }
     ]
-  },
-  {
-    id: 3,
-    name: "Design Creators",
-    type: "Community",
-    online: true,
-    messages: [
-      { sender: "them", text: "New design pack dropped today.", time: "2:14 PM" },
-      { sender: "me", text: "Add it to the design library later.", time: "2:16 PM" }
-    ]
-  },
-  {
-    id: 4,
-    name: "Gaming Lounge",
-    type: "Community",
-    online: true,
-    messages: [
-      { sender: "them", text: "Anyone online tonight?", time: "1:45 PM" },
-      { sender: "me", text: "Maybe later.", time: "1:49 PM" }
-    ]
   }
 ];
+
+let chats = [...demoChats];
 
 const modeInfo = {
   core: {
@@ -85,8 +74,11 @@ const modeInfo = {
 
 let currentUser = null;
 let currentUserData = null;
-let activeChatId = 1;
+let activeChatId = "demo-1";
 let activeMode = localStorage.getItem("vyntraMode") || "core";
+let unsubscribeMessages = null;
+let unsubscribeChats = null;
+let unsubscribeRequests = null;
 
 const body = document.body;
 const chatList = document.getElementById("chatList");
@@ -109,22 +101,23 @@ function normalise(value = "") {
 }
 
 onAuthStateChanged(auth, async user => {
-  const savedUser = JSON.parse(localStorage.getItem("vyntraUser"));
-
-  if (!user && !savedUser) {
+  if (!user) {
+    localStorage.removeItem("vyntraUser");
     window.location.href = "login.html";
     return;
   }
 
-  currentUser = user || savedUser;
+  currentUser = user;
 
   await ensureUserProfile();
   await loadCurrentUserData();
 
   setupUserLabels();
   setupTutorial();
-  setupFriendFinder();
-  await loadFriends();
+  setupFriendSystem();
+
+  listenForFriendRequests();
+  listenForRealChats();
 
   applyMode(activeMode);
   renderChats();
@@ -132,31 +125,27 @@ onAuthStateChanged(auth, async user => {
 });
 
 async function ensureUserProfile() {
-  if (!currentUser) return;
-
-  const uid = currentUser.uid;
-  const email = normalise(currentUser.email || "");
   const savedUser = JSON.parse(localStorage.getItem("vyntraUser")) || {};
 
   const fallbackName =
     savedUser.name ||
     currentUser.displayName ||
-    (email ? email.split("@")[0] : "Vyntra User");
+    currentUser.email.split("@")[0];
 
   const fallbackUsername =
     savedUser.username ||
     fallbackName.toLowerCase().replace(/\s+/g, "");
 
-  const userRef = doc(db, "users", uid);
+  const userRef = doc(db, "users", currentUser.uid);
   const snap = await getDoc(userRef);
 
   if (!snap.exists()) {
     await setDoc(userRef, {
-      uid,
+      uid: currentUser.uid,
       name: fallbackName,
       nameLower: normalise(fallbackName),
       username: normalise(fallbackUsername).replace(/\s+/g, ""),
-      email,
+      email: normalise(currentUser.email),
       photo: currentUser.photoURL || "",
       friends: [],
       createdAt: serverTimestamp()
@@ -167,11 +156,11 @@ async function ensureUserProfile() {
     await setDoc(
       userRef,
       {
-        uid,
+        uid: currentUser.uid,
         name: data.name || fallbackName,
         nameLower: normalise(data.name || fallbackName),
         username: normalise(data.username || fallbackUsername).replace(/\s+/g, ""),
-        email: normalise(data.email || email),
+        email: normalise(data.email || currentUser.email),
         photo: data.photo || currentUser.photoURL || "",
         friends: data.friends || []
       },
@@ -181,8 +170,6 @@ async function ensureUserProfile() {
 }
 
 async function loadCurrentUserData() {
-  if (!currentUser) return;
-
   const userRef = doc(db, "users", currentUser.uid);
   const snap = await getDoc(userRef);
 
@@ -204,8 +191,8 @@ async function loadCurrentUserData() {
 function setupUserLabels() {
   const username =
     currentUserData?.username ||
-    currentUser?.email?.split("@")[0] ||
-    "founder";
+    currentUser.email.split("@")[0] ||
+    "user";
 
   userLabel.textContent = "@" + username;
   profilePreview.textContent = "@" + username;
@@ -234,14 +221,14 @@ logoutBtn.addEventListener("click", async () => {
   window.location.href = "login.html";
 });
 
-function setupFriendFinder() {
+function setupFriendSystem() {
   const rightbar = document.querySelector(".rightbar");
 
-  if (!rightbar || document.getElementById("friendFinderPanel")) return;
+  if (!rightbar || document.getElementById("friendSystemPanel")) return;
 
   const panel = document.createElement("div");
   panel.className = "panel";
-  panel.id = "friendFinderPanel";
+  panel.id = "friendSystemPanel";
 
   panel.innerHTML = `
     <h2>Find Friends</h2>
@@ -260,8 +247,10 @@ function setupFriendFinder() {
 
     <div id="friendSearchResult"></div>
 
-    <h2 style="margin-top: 18px;">My Friends</h2>
-    <div id="friendsList"></div>
+    <h2 style="margin-top: 18px;">Requests</h2>
+    <div id="friendRequestsList">
+      <p class="muted">No requests yet.</p>
+    </div>
   `;
 
   rightbar.insertBefore(panel, rightbar.firstChild);
@@ -330,6 +319,11 @@ async function searchFriend() {
     return;
   }
 
+  if ((currentUserData.friends || []).includes(foundUser.uid)) {
+    resultBox.innerHTML = "<p class='muted'>You are already friends with this user.</p>";
+    return;
+  }
+
   resultBox.innerHTML = `
     <div class="friend-result-card">
       <div class="chat-avatar">${escapeHTML(foundUser.name || "U").charAt(0)}</div>
@@ -339,124 +333,254 @@ async function searchFriend() {
         <p>${escapeHTML(foundUser.email || "")}</p>
         <p>@${escapeHTML(foundUser.username || "")}</p>
 
-        <button class="small-friend-btn" data-friend-id="${foundUser.uid}">
-          Add Friend
+        <button class="small-friend-btn" id="sendRequestBtn">
+          Send Friend Request
         </button>
       </div>
     </div>
   `;
 
   document
-    .querySelector(".small-friend-btn")
-    .addEventListener("click", () => addFriend(foundUser.uid));
+    .getElementById("sendRequestBtn")
+    .addEventListener("click", () => sendFriendRequest(foundUser));
 }
 
-async function addFriend(friendUid) {
-  if (!currentUser) return;
+async function sendFriendRequest(foundUser) {
+  const requestId = `${currentUser.uid}_${foundUser.uid}`;
+  const reverseRequestId = `${foundUser.uid}_${currentUser.uid}`;
 
-  const userRef = doc(db, "users", currentUser.uid);
-  const snap = await getDoc(userRef);
+  const requestRef = doc(db, "friendRequests", requestId);
+  const reverseRequestRef = doc(db, "friendRequests", reverseRequestId);
 
-  if (snap.exists()) {
-    const friends = snap.data().friends || [];
+  const existingRequest = await getDoc(requestRef);
+  const reverseRequest = await getDoc(reverseRequestRef);
 
-    if (friends.includes(friendUid)) {
-      alert("This user is already your friend.");
-      return;
-    }
-  }
-
-  await updateDoc(userRef, {
-    friends: arrayUnion(friendUid)
-  });
-
-  alert("Friend added!");
-
-  document.getElementById("friendSearchInput").value = "";
-  document.getElementById("friendSearchResult").innerHTML = "";
-
-  await loadFriends();
-}
-
-async function loadFriends() {
-  const friendsList = document.getElementById("friendsList");
-
-  if (!friendsList || !currentUser) return;
-
-  friendsList.innerHTML = "";
-
-  const userRef = doc(db, "users", currentUser.uid);
-  const snap = await getDoc(userRef);
-
-  if (!snap.exists() || !snap.data().friends || snap.data().friends.length === 0) {
-    friendsList.innerHTML = "<p class='muted'>No friends added yet.</p>";
+  if (existingRequest.exists() && existingRequest.data().status === "pending") {
+    alert("Friend request already sent.");
     return;
   }
 
-  const friendIds = snap.data().friends;
-
-  for (const friendUid of friendIds) {
-    const friendSnap = await getDoc(doc(db, "users", friendUid));
-
-    if (friendSnap.exists()) {
-      const friend = friendSnap.data();
-
-      friendsList.innerHTML += `
-        <button class="chat-item friend-chat-btn" data-friend-id="${friend.uid}">
-          <div class="chat-avatar">${escapeHTML(friend.name || "U").charAt(0)}</div>
-          <div class="chat-info">
-            <strong>${escapeHTML(friend.name || "Unknown User")}</strong>
-            <span>@${escapeHTML(friend.username || "")}</span>
-          </div>
-        </button>
-      `;
-    }
+  if (reverseRequest.exists() && reverseRequest.data().status === "pending") {
+    alert("This user already sent you a request. Accept it from your Requests panel.");
+    return;
   }
 
-  document.querySelectorAll(".friend-chat-btn").forEach(button => {
-    button.addEventListener("click", async () => {
-      const friendUid = button.dataset.friendId;
-      await openFriendChat(friendUid);
+  await setDoc(requestRef, {
+    id: requestId,
+    fromUid: currentUser.uid,
+    fromName: currentUserData.name,
+    fromUsername: currentUserData.username,
+    fromEmail: currentUserData.email,
+    toUid: foundUser.uid,
+    toName: foundUser.name,
+    toUsername: foundUser.username,
+    toEmail: foundUser.email,
+    status: "pending",
+    createdAt: serverTimestamp()
+  });
+
+  document.getElementById("friendSearchResult").innerHTML =
+    "<p class='muted'>Friend request sent.</p>";
+
+  document.getElementById("friendSearchInput").value = "";
+}
+
+function listenForFriendRequests() {
+  if (unsubscribeRequests) unsubscribeRequests();
+
+  const requestsRef = collection(db, "friendRequests");
+  const q = query(
+    requestsRef,
+    where("toUid", "==", currentUser.uid),
+    where("status", "==", "pending")
+  );
+
+  unsubscribeRequests = onSnapshot(q, snapshot => {
+    const requestBox = document.getElementById("friendRequestsList");
+    if (!requestBox) return;
+
+    requestBox.innerHTML = "";
+
+    if (snapshot.empty) {
+      requestBox.innerHTML = "<p class='muted'>No requests yet.</p>";
+      return;
+    }
+
+    snapshot.forEach(docSnap => {
+      const request = docSnap.data();
+
+      const div = document.createElement("div");
+      div.className = "friend-result-card";
+
+      div.innerHTML = `
+        <div class="chat-avatar">${escapeHTML(request.fromName || "U").charAt(0)}</div>
+
+        <div>
+          <strong>${escapeHTML(request.fromName || "Unknown User")}</strong>
+          <p>@${escapeHTML(request.fromUsername || "")}</p>
+          <p>${escapeHTML(request.fromEmail || "")}</p>
+
+          <button class="small-friend-btn accept-request-btn" data-request-id="${request.id}">
+            Accept
+          </button>
+        </div>
+      `;
+
+      requestBox.appendChild(div);
+    });
+
+    document.querySelectorAll(".accept-request-btn").forEach(button => {
+      button.addEventListener("click", () => {
+        acceptFriendRequest(button.dataset.requestId);
+      });
     });
   });
 }
 
-async function openFriendChat(friendUid) {
-  const friendSnap = await getDoc(doc(db, "users", friendUid));
+async function acceptFriendRequest(requestId) {
+  const requestRef = doc(db, "friendRequests", requestId);
+  const requestSnap = await getDoc(requestRef);
 
-  if (!friendSnap.exists()) return;
-
-  const friend = friendSnap.data();
-
-  const existingChat = chats.find(chat => chat.friendUid === friendUid);
-
-  if (existingChat) {
-    activeChatId = existingChat.id;
-  } else {
-    const newChat = {
-      id: Date.now(),
-      friendUid,
-      name: friend.name || friend.email || "Friend",
-      type: "Friend",
-      online: true,
-      messages: [
-        {
-          sender: "them",
-          text: `You are now connected with ${friend.name || "this user"}.`,
-          time: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit"
-          })
-        }
-      ]
-    };
-
-    chats.push(newChat);
-    activeChatId = newChat.id;
+  if (!requestSnap.exists()) {
+    alert("Request no longer exists.");
+    return;
   }
 
-  renderChats();
-  renderMessages();
+  const request = requestSnap.data();
+
+  if (request.toUid !== currentUser.uid) {
+    alert("This request is not for your account.");
+    return;
+  }
+
+  const fromUserRef = doc(db, "users", request.fromUid);
+  const toUserRef = doc(db, "users", request.toUid);
+
+  await updateDoc(fromUserRef, {
+    friends: arrayUnion(request.toUid)
+  });
+
+  await updateDoc(toUserRef, {
+    friends: arrayUnion(request.fromUid)
+  });
+
+  const chatId = createChatId(request.fromUid, request.toUid);
+  const chatRef = doc(db, "chats", chatId);
+
+  await setDoc(
+    chatRef,
+    {
+      id: chatId,
+      members: [request.fromUid, request.toUid],
+      memberNames: {
+        [request.fromUid]: request.fromName,
+        [request.toUid]: request.toName
+      },
+      memberUsernames: {
+        [request.fromUid]: request.fromUsername,
+        [request.toUid]: request.toUsername
+      },
+      lastMessage: "You are now connected.",
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  await addDoc(collection(db, "chats", chatId, "messages"), {
+    senderId: "system",
+    text: "You are now connected. Start chatting!",
+    createdAt: serverTimestamp()
+  });
+
+  await updateDoc(requestRef, {
+    status: "accepted",
+    acceptedAt: serverTimestamp()
+  });
+
+  await loadCurrentUserData();
+
+  alert("Friend request accepted!");
+}
+
+function listenForRealChats() {
+  if (unsubscribeChats) unsubscribeChats();
+
+  const chatsRef = collection(db, "chats");
+  const q = query(chatsRef, where("members", "array-contains", currentUser.uid));
+
+  unsubscribeChats = onSnapshot(q, snapshot => {
+    const realChats = [];
+
+    snapshot.forEach(docSnap => {
+      const chat = docSnap.data();
+      const otherUid = chat.members.find(uid => uid !== currentUser.uid);
+
+      const name =
+        chat.memberNames?.[otherUid] ||
+        chat.memberUsernames?.[otherUid] ||
+        "Friend";
+
+      realChats.push({
+        id: chat.id,
+        chatId: chat.id,
+        name,
+        type: "Friend",
+        online: true,
+        isReal: true,
+        lastMessage: chat.lastMessage || "Start chatting",
+        messages: []
+      });
+    });
+
+    chats = [...realChats, ...demoChats];
+
+    if (!chats.find(chat => chat.id === activeChatId)) {
+      activeChatId = chats[0]?.id || "demo-1";
+    }
+
+    renderChats();
+    renderMessages();
+
+    const activeChat = getActiveChat();
+
+    if (activeChat?.isReal) {
+      listenForMessages(activeChat.chatId);
+    }
+  });
+}
+
+function listenForMessages(chatId) {
+  if (unsubscribeMessages) unsubscribeMessages();
+
+  const messagesRef = collection(db, "chats", chatId, "messages");
+  const q = query(messagesRef, orderBy("createdAt", "asc"));
+
+  unsubscribeMessages = onSnapshot(q, snapshot => {
+    const chat = chats.find(item => item.chatId === chatId);
+
+    if (!chat) return;
+
+    chat.messages = [];
+
+    snapshot.forEach(docSnap => {
+      const msg = docSnap.data();
+
+      chat.messages.push({
+        sender:
+          msg.senderId === "system"
+            ? "them"
+            : msg.senderId === currentUser.uid
+              ? "me"
+              : "them",
+        text: msg.text,
+        time: formatFirestoreTime(msg.createdAt)
+      });
+    });
+
+    renderChats();
+    renderMessages();
+  });
 }
 
 function applyMode(mode) {
@@ -505,7 +629,10 @@ function renderChats() {
   chatList.innerHTML = "";
 
   filteredChats.forEach(chat => {
-    const lastMessage = chat.messages[chat.messages.length - 1];
+    const lastMessage =
+      chat.isReal
+        ? chat.lastMessage
+        : chat.messages[chat.messages.length - 1]?.text;
 
     const button = document.createElement("button");
     button.className = `chat-item ${chat.id === activeChatId ? "active" : ""}`;
@@ -514,7 +641,7 @@ function renderChats() {
       <div class="chat-avatar">${escapeHTML(chat.name.charAt(0))}</div>
       <div class="chat-info">
         <strong>${escapeHTML(chat.name)}</strong>
-        <span>${lastMessage ? escapeHTML(lastMessage.text) : "No messages yet"}</span>
+        <span>${lastMessage ? escapeHTML(lastMessage) : "No messages yet"}</span>
       </div>
     `;
 
@@ -522,6 +649,14 @@ function renderChats() {
       activeChatId = chat.id;
       renderChats();
       renderMessages();
+
+      const activeChat = getActiveChat();
+
+      if (activeChat?.isReal) {
+        listenForMessages(activeChat.chatId);
+      } else if (unsubscribeMessages) {
+        unsubscribeMessages();
+      }
     });
 
     chatList.appendChild(button);
@@ -553,12 +688,31 @@ function renderMessages() {
   messageArea.scrollTop = messageArea.scrollHeight;
 }
 
-function sendMessage() {
+async function sendMessage() {
   const text = messageInput.value.trim();
 
   if (!text) return;
 
   const chat = getActiveChat();
+
+  if (!chat) return;
+
+  if (chat.isReal) {
+    messageInput.value = "";
+
+    await addDoc(collection(db, "chats", chat.chatId, "messages"), {
+      senderId: currentUser.uid,
+      text,
+      createdAt: serverTimestamp()
+    });
+
+    await updateDoc(doc(db, "chats", chat.chatId), {
+      lastMessage: text,
+      updatedAt: serverTimestamp()
+    });
+
+    return;
+  }
 
   chat.messages.push({
     sender: "me",
@@ -598,6 +752,19 @@ function getAutoReply() {
   ];
 
   return replies[Math.floor(Math.random() * replies.length)];
+}
+
+function createChatId(uid1, uid2) {
+  return [uid1, uid2].sort().join("_");
+}
+
+function formatFirestoreTime(timestamp) {
+  if (!timestamp || !timestamp.toDate) return "";
+
+  return timestamp.toDate().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 function escapeHTML(text = "") {
