@@ -18,7 +18,8 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
-  arrayUnion
+  arrayUnion,
+  increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const demoChats = [
@@ -50,35 +51,22 @@ const demoChats = [
 let chats = [...demoChats];
 
 const modeInfo = {
-  core: {
-    title: "Core",
-    text: "Clean, simple, everyday chat."
-  },
-  pulse: {
-    title: "Pulse",
-    text: "Bright, social, energetic."
-  },
-  neon: {
-    title: "Neon",
-    text: "Futuristic, glowing, immersive."
-  },
-  cozy: {
-    title: "Cozy",
-    text: "Warm, calm, personal."
-  },
-  velocity: {
-    title: "Velocity",
-    text: "Fast, animated, energetic, and social."
-  }
+  core: { title: "Core", text: "Clean, simple, everyday chat." },
+  pulse: { title: "Pulse", text: "Bright, social, energetic." },
+  neon: { title: "Neon", text: "Futuristic, glowing, immersive." },
+  cozy: { title: "Cozy", text: "Warm, calm, personal." },
+  velocity: { title: "Velocity", text: "Fast, animated, energetic, and social." }
 };
 
 let currentUser = null;
 let currentUserData = null;
 let activeChatId = "demo-1";
 let activeMode = localStorage.getItem("vyntraMode") || "core";
+
 let unsubscribeMessages = null;
 let unsubscribeChats = null;
 let unsubscribeRequests = null;
+let typingTimeout = null;
 
 const body = document.body;
 const chatList = document.getElementById("chatList");
@@ -95,6 +83,7 @@ const tutorial = document.getElementById("tutorial");
 const logoutBtn = document.getElementById("logoutBtn");
 const userLabel = document.getElementById("userLabel");
 const profilePreview = document.getElementById("profilePreview");
+const attachBtn = document.querySelector(".message-input-wrap .icon-btn");
 
 function normalise(value = "") {
   return String(value).toLowerCase().trim();
@@ -110,11 +99,13 @@ onAuthStateChanged(auth, async user => {
   currentUser = user;
 
   await ensureUserProfile();
+  await setOnlineStatus(true);
   await loadCurrentUserData();
 
   setupUserLabels();
   setupTutorial();
   setupFriendSystem();
+  setupProfileModal();
 
   listenForFriendRequests();
   listenForRealChats();
@@ -122,6 +113,19 @@ onAuthStateChanged(auth, async user => {
   applyMode(activeMode);
   renderChats();
   renderMessages();
+});
+
+window.addEventListener("beforeunload", () => {
+  if (currentUser) {
+    setDoc(
+      doc(db, "users", currentUser.uid),
+      {
+        online: false,
+        lastSeen: serverTimestamp()
+      },
+      { merge: true }
+    );
+  }
 });
 
 async function ensureUserProfile() {
@@ -147,7 +151,10 @@ async function ensureUserProfile() {
       username: normalise(fallbackUsername).replace(/\s+/g, ""),
       email: normalise(currentUser.email),
       photo: currentUser.photoURL || "",
+      bio: "",
       friends: [],
+      online: true,
+      lastSeen: serverTimestamp(),
       createdAt: serverTimestamp()
     });
   } else {
@@ -162,11 +169,27 @@ async function ensureUserProfile() {
         username: normalise(data.username || fallbackUsername).replace(/\s+/g, ""),
         email: normalise(data.email || currentUser.email),
         photo: data.photo || currentUser.photoURL || "",
-        friends: data.friends || []
+        bio: data.bio || "",
+        friends: data.friends || [],
+        online: true,
+        lastSeen: serverTimestamp()
       },
       { merge: true }
     );
   }
+}
+
+async function setOnlineStatus(isOnline) {
+  if (!currentUser) return;
+
+  await setDoc(
+    doc(db, "users", currentUser.uid),
+    {
+      online: isOnline,
+      lastSeen: serverTimestamp()
+    },
+    { merge: true }
+  );
 }
 
 async function loadCurrentUserData() {
@@ -213,6 +236,7 @@ logoutBtn.addEventListener("click", async () => {
   localStorage.removeItem("vyntraUser");
 
   try {
+    await setOnlineStatus(false);
     await signOut(auth);
   } catch (error) {
     console.warn("Logout warning:", error);
@@ -251,6 +275,11 @@ function setupFriendSystem() {
     <div id="friendRequestsList">
       <p class="muted">No requests yet.</p>
     </div>
+
+    <h2 style="margin-top: 18px;">Groups</h2>
+    <button id="createGroupBtn" class="secondary-btn full">
+      Create Group Chat
+    </button>
   `;
 
   rightbar.insertBefore(panel, rightbar.firstChild);
@@ -264,6 +293,10 @@ function setupFriendSystem() {
     .addEventListener("keydown", event => {
       if (event.key === "Enter") searchFriend();
     });
+
+  document
+    .getElementById("createGroupBtn")
+    .addEventListener("click", createGroupChat);
 }
 
 async function searchFriend() {
@@ -471,6 +504,7 @@ async function acceptFriendRequest(requestId) {
     chatRef,
     {
       id: chatId,
+      type: "dm",
       members: [request.fromUid, request.toUid],
       memberNames: {
         [request.fromUid]: request.fromName,
@@ -480,6 +514,11 @@ async function acceptFriendRequest(requestId) {
         [request.fromUid]: request.fromUsername,
         [request.toUid]: request.toUsername
       },
+      unread: {
+        [request.fromUid]: 0,
+        [request.toUid]: 0
+      },
+      typingUser: null,
       lastMessage: "You are now connected.",
       updatedAt: serverTimestamp(),
       createdAt: serverTimestamp()
@@ -490,6 +529,8 @@ async function acceptFriendRequest(requestId) {
   await addDoc(collection(db, "chats", chatId, "messages"), {
     senderId: "system",
     text: "You are now connected. Start chatting!",
+    type: "text",
+    status: "",
     createdAt: serverTimestamp()
   });
 
@@ -503,35 +544,108 @@ async function acceptFriendRequest(requestId) {
   alert("Friend request accepted!");
 }
 
+async function createGroupChat() {
+  if (!currentUserData?.friends || currentUserData.friends.length === 0) {
+    alert("Add friends before creating a group.");
+    return;
+  }
+
+  const groupName = prompt("Group chat name:");
+
+  if (!groupName || !groupName.trim()) return;
+
+  const chatId = "group_" + Date.now();
+  const members = [currentUser.uid, ...currentUserData.friends];
+
+  const memberNames = {};
+  const memberUsernames = {};
+  const unread = {};
+
+  memberNames[currentUser.uid] = currentUserData.name;
+  memberUsernames[currentUser.uid] = currentUserData.username;
+  unread[currentUser.uid] = 0;
+
+  for (const friendUid of currentUserData.friends) {
+    const snap = await getDoc(doc(db, "users", friendUid));
+
+    if (snap.exists()) {
+      const data = snap.data();
+      memberNames[friendUid] = data.name || "Friend";
+      memberUsernames[friendUid] = data.username || "";
+      unread[friendUid] = 1;
+    }
+  }
+
+  await setDoc(doc(db, "chats", chatId), {
+    id: chatId,
+    type: "group",
+    groupName: groupName.trim(),
+    members,
+    memberNames,
+    memberUsernames,
+    unread,
+    typingUser: null,
+    lastMessage: "Group created.",
+    updatedAt: serverTimestamp(),
+    createdAt: serverTimestamp()
+  });
+
+  await addDoc(collection(db, "chats", chatId, "messages"), {
+    senderId: "system",
+    text: `${groupName.trim()} was created.`,
+    type: "text",
+    status: "",
+    createdAt: serverTimestamp()
+  });
+
+  alert("Group chat created!");
+}
+
 function listenForRealChats() {
   if (unsubscribeChats) unsubscribeChats();
 
   const chatsRef = collection(db, "chats");
   const q = query(chatsRef, where("members", "array-contains", currentUser.uid));
 
-  unsubscribeChats = onSnapshot(q, snapshot => {
+  unsubscribeChats = onSnapshot(q, async snapshot => {
     const realChats = [];
 
-    snapshot.forEach(docSnap => {
+    for (const docSnap of snapshot.docs) {
       const chat = docSnap.data();
-      const otherUid = chat.members.find(uid => uid !== currentUser.uid);
 
-      const name =
-        chat.memberNames?.[otherUid] ||
-        chat.memberUsernames?.[otherUid] ||
-        "Friend";
+      let name = chat.groupName || "Chat";
+      let online = true;
+      let otherUid = null;
+
+      if (chat.type !== "group") {
+        otherUid = chat.members.find(uid => uid !== currentUser.uid);
+
+        name =
+          chat.memberNames?.[otherUid] ||
+          chat.memberUsernames?.[otherUid] ||
+          "Friend";
+
+        if (otherUid) {
+          const userSnap = await getDoc(doc(db, "users", otherUid));
+          online = userSnap.exists() ? !!userSnap.data().online : false;
+        }
+      }
 
       realChats.push({
         id: chat.id,
         chatId: chat.id,
         name,
-        type: "Friend",
-        online: true,
+        type: chat.type === "group" ? "Group" : "Friend",
+        online,
         isReal: true,
+        members: chat.members || [],
+        otherUid,
+        typingUser: chat.typingUser || null,
+        unreadCount: chat.unread?.[currentUser.uid] || 0,
         lastMessage: chat.lastMessage || "Start chatting",
         messages: []
       });
-    });
+    }
 
     chats = [...realChats, ...demoChats];
 
@@ -546,6 +660,7 @@ function listenForRealChats() {
 
     if (activeChat?.isReal) {
       listenForMessages(activeChat.chatId);
+      markChatAsRead(activeChat.chatId);
     }
   });
 }
@@ -556,15 +671,25 @@ function listenForMessages(chatId) {
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("createdAt", "asc"));
 
-  unsubscribeMessages = onSnapshot(q, snapshot => {
+  unsubscribeMessages = onSnapshot(q, async snapshot => {
     const chat = chats.find(item => item.chatId === chatId);
 
     if (!chat) return;
 
     chat.messages = [];
 
-    snapshot.forEach(docSnap => {
+    for (const docSnap of snapshot.docs) {
       const msg = docSnap.data();
+
+      if (
+        msg.senderId !== currentUser.uid &&
+        msg.senderId !== "system" &&
+        msg.status !== "seen"
+      ) {
+        await updateDoc(doc(db, "chats", chatId, "messages", docSnap.id), {
+          status: "seen"
+        });
+      }
 
       chat.messages.push({
         sender:
@@ -574,12 +699,35 @@ function listenForMessages(chatId) {
               ? "me"
               : "them",
         text: msg.text,
+        type: msg.type || "text",
+        imageUrl: msg.imageUrl || "",
+        status: msg.status || "",
         time: formatFirestoreTime(msg.createdAt)
       });
-    });
+    }
+
+    await markChatAsRead(chatId);
 
     renderChats();
     renderMessages();
+  });
+}
+
+async function markChatAsRead(chatId) {
+  if (!currentUser) return;
+
+  await updateDoc(doc(db, "chats", chatId), {
+    [`unread.${currentUser.uid}`]: 0
+  });
+}
+
+async function updateTyping(isTyping) {
+  const chat = getActiveChat();
+
+  if (!chat?.isReal) return;
+
+  await updateDoc(doc(db, "chats", chat.chatId), {
+    typingUser: isTyping ? currentUser.uid : null
   });
 }
 
@@ -634,18 +782,31 @@ function renderChats() {
         ? chat.lastMessage
         : chat.messages[chat.messages.length - 1]?.text;
 
+    const unreadBadge =
+      chat.unreadCount && chat.unreadCount > 0
+        ? `<span style="background:#ef4444;color:white;border-radius:999px;padding:2px 7px;font-size:11px;margin-left:6px;">${chat.unreadCount}</span>`
+        : "";
+
+    const onlineDot =
+      chat.online
+        ? `<span style="height:9px;width:9px;background:#22c55e;border-radius:50%;display:inline-block;margin-left:6px;"></span>`
+        : "";
+
     const button = document.createElement("button");
     button.className = `chat-item ${chat.id === activeChatId ? "active" : ""}`;
 
     button.innerHTML = `
-      <div class="chat-avatar">${escapeHTML(chat.name.charAt(0))}</div>
+      <div class="chat-avatar profile-open" data-chat-id="${chat.id}">
+        ${escapeHTML(chat.name.charAt(0))}
+      </div>
+
       <div class="chat-info">
-        <strong>${escapeHTML(chat.name)}</strong>
+        <strong>${escapeHTML(chat.name)} ${unreadBadge} ${onlineDot}</strong>
         <span>${lastMessage ? escapeHTML(lastMessage) : "No messages yet"}</span>
       </div>
     `;
 
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       activeChatId = chat.id;
       renderChats();
       renderMessages();
@@ -654,12 +815,23 @@ function renderChats() {
 
       if (activeChat?.isReal) {
         listenForMessages(activeChat.chatId);
+        await markChatAsRead(activeChat.chatId);
       } else if (unsubscribeMessages) {
         unsubscribeMessages();
       }
     });
 
     chatList.appendChild(button);
+  });
+
+  document.querySelectorAll(".profile-open").forEach(avatar => {
+    avatar.addEventListener("click", event => {
+      event.stopPropagation();
+
+      const chat = chats.find(item => item.id === avatar.dataset.chatId);
+
+      if (chat) openProfileModal(chat);
+    });
   });
 }
 
@@ -668,8 +840,14 @@ function renderMessages() {
 
   if (!chat) return;
 
+  const typingText =
+    chat.typingUser &&
+    chat.typingUser !== currentUser.uid
+      ? "Typing..."
+      : `${chat.type} • ${chat.online ? "Online" : "Offline"} • ${modeInfo[activeMode].title} Mode`;
+
   activeChatName.textContent = chat.name;
-  activeChatStatus.textContent = `${chat.type} • ${chat.online ? "Online" : "Offline"} • ${modeInfo[activeMode].title} Mode`;
+  activeChatStatus.textContent = typingText;
 
   messageArea.innerHTML = "";
 
@@ -677,9 +855,19 @@ function renderMessages() {
     const row = document.createElement("div");
     row.className = `message-row ${message.sender === "me" ? "me" : "them"}`;
 
+    const messageContent =
+      message.type === "image"
+        ? `<img src="${escapeHTML(message.imageUrl)}" alt="Sent image" style="max-width:240px;border-radius:18px;display:block;" />`
+        : escapeHTML(message.text);
+
+    const statusText =
+      message.sender === "me" && message.status
+        ? `<span class="seen-status"> • ${escapeHTML(message.status)}</span>`
+        : "";
+
     row.innerHTML = `
-      <div class="message">${escapeHTML(message.text)}</div>
-      <div class="message-time">${escapeHTML(message.time)}</div>
+      <div class="message">${messageContent}</div>
+      <div class="message-time">${escapeHTML(message.time)}${statusText}</div>
     `;
 
     messageArea.appendChild(row);
@@ -699,16 +887,28 @@ async function sendMessage() {
 
   if (chat.isReal) {
     messageInput.value = "";
+    await updateTyping(false);
+
+    const unreadUpdates = {};
+
+    chat.members.forEach(uid => {
+      if (uid !== currentUser.uid) {
+        unreadUpdates[`unread.${uid}`] = increment(1);
+      }
+    });
 
     await addDoc(collection(db, "chats", chat.chatId, "messages"), {
       senderId: currentUser.uid,
       text,
+      type: "text",
+      status: "sent",
       createdAt: serverTimestamp()
     });
 
     await updateDoc(doc(db, "chats", chat.chatId), {
       lastMessage: text,
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      ...unreadUpdates
     });
 
     return;
@@ -740,6 +940,81 @@ async function sendMessage() {
     renderChats();
     renderMessages();
   }, 700);
+}
+
+async function sendImageByUrl() {
+  const chat = getActiveChat();
+
+  if (!chat?.isReal) {
+    alert("Images only work in real friend/group chats.");
+    return;
+  }
+
+  const imageUrl = prompt("Paste an image URL:");
+
+  if (!imageUrl || !imageUrl.trim()) return;
+
+  const unreadUpdates = {};
+
+  chat.members.forEach(uid => {
+    if (uid !== currentUser.uid) {
+      unreadUpdates[`unread.${uid}`] = increment(1);
+    }
+  });
+
+  await addDoc(collection(db, "chats", chat.chatId, "messages"), {
+    senderId: currentUser.uid,
+    text: "Image",
+    type: "image",
+    imageUrl: imageUrl.trim(),
+    status: "sent",
+    createdAt: serverTimestamp()
+  });
+
+  await updateDoc(doc(db, "chats", chat.chatId), {
+    lastMessage: "📷 Image",
+    updatedAt: serverTimestamp(),
+    ...unreadUpdates
+  });
+}
+
+function openProfileModal(chat) {
+  let modal = document.getElementById("profileModal");
+
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "profileModal";
+    modal.style.position = "fixed";
+    modal.style.inset = "0";
+    modal.style.background = "rgba(0,0,0,0.65)";
+    modal.style.backdropFilter = "blur(12px)";
+    modal.style.zIndex = "999";
+    modal.style.display = "grid";
+    modal.style.placeItems = "center";
+    modal.style.padding = "20px";
+
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div class="panel" style="max-width:420px;width:100%;">
+      <div class="chat-avatar" style="width:70px;height:70px;font-size:28px;margin-bottom:16px;">
+        ${escapeHTML(chat.name.charAt(0))}
+      </div>
+
+      <h2>${escapeHTML(chat.name)}</h2>
+      <p class="muted">${escapeHTML(chat.type)}</p>
+      <p class="muted">${chat.online ? "Online now" : "Offline"}</p>
+
+      <button id="closeProfileModal" class="secondary-btn full" style="margin-top:18px;">
+        Close
+      </button>
+    </div>
+  `;
+
+  document.getElementById("closeProfileModal").addEventListener("click", () => {
+    modal.remove();
+  });
 }
 
 function getAutoReply() {
@@ -780,5 +1055,23 @@ messageInput.addEventListener("keydown", event => {
     sendMessage();
   }
 });
+
+messageInput.addEventListener("input", async () => {
+  const chat = getActiveChat();
+
+  if (!chat?.isReal) return;
+
+  await updateTyping(true);
+
+  clearTimeout(typingTimeout);
+
+  typingTimeout = setTimeout(async () => {
+    await updateTyping(false);
+  }, 1500);
+});
+
+if (attachBtn) {
+  attachBtn.addEventListener("click", sendImageByUrl);
+}
 
 searchInput.addEventListener("input", renderChats);
