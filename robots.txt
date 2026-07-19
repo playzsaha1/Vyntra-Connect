@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://playzsaha1.github.io/Vyntra-Connect/sitemap.xml

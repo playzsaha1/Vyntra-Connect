@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" rx="36" fill="#020617"/>
+  <rect x="44" y="44" width="1112" height="542" rx="28" fill="url(#grad)" stroke="#22d3ee" stroke-width="2"/>
+  <circle cx="286" cy="292" r="108" fill="#ffffff" fill-opacity="0.14"/>
+  <circle cx="912" cy="268" r="140" fill="#ffffff" fill-opacity="0.08"/>
+  <path d="M268 222h158c74 0 134 60 134 134s-60 134-134 134H268V222Z" fill="#ffffff" fill-opacity="0.9"/>
+  <path d="M332 250h94c44 0 80 36 80 80s-36 80-80 80h-94V250Z" fill="#22d3ee"/>
+  <path d="M568 248h176c54 0 98 44 98 98s-44 98-98 98H568v-196Z" fill="#ffffff" fill-opacity="0.9"/>
+  <path d="M620 284h96c32 0 58 26 58 58s-26 58-58 58h-96v-116Z" fill="#3b82f6"/>
+  <text x="138" y="474" fill="#ffffff" font-family="Arial, sans-serif" font-size="54" font-weight="700">Vyntra Connect</text>
+  <text x="138" y="526" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="30">Created by Sahaan Kesavan in Sydney, Australia</text>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#172554"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+</svg>
