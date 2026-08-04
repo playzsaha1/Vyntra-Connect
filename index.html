@@ -42,7 +42,7 @@
 </head>
 
 <body class="landing-page core-mode">
-  <nav class="nav">
+  <nav class="nav" id="navbar">
     <a href="./" class="logo">Vyntra <span>Connect</span></a>
 
     <div class="nav-links">
@@ -54,9 +54,9 @@
   </nav>
 
   <main class="hero">
-    <section class="hero-text">
+    <section class="hero-text reveal">
       <p class="tag">Messaging that changes with your vibe</p>
-      <h1>One chat app. Multiple worlds.</h1>
+      <h1>One chat app.<br />Multiple worlds.</h1>
 
       <p class="sub">
         Vyntra Connect is a modern communication platform created by Sahaan Kesavan in Sydney, Australia.
@@ -70,7 +70,7 @@
       </div>
     </section>
 
-    <section class="hero-card" aria-label="Vyntra Connect preview">
+    <section class="hero-card reveal" aria-label="Vyntra Connect preview">
       <img
         src="assets/vyntra-og.svg"
         alt="A stylised preview of Vyntra Connect featuring community messaging and direct chat interfaces"
@@ -79,8 +79,20 @@
     </section>
   </main>
 
+  <section id="globe-section" class="globe-section">
+    <div id="globe-canvas"></div>
+    <div class="globe-overlay reveal">
+      <p class="eyebrow">Connect from anywhere</p>
+      <h2>The world, on one platform</h2>
+      <p class="globe-sub">
+        From Sydney to São Paulo, Vyntra Connect brings people together.
+        Communities and direct messages that cross every border — scroll to explore.
+      </p>
+    </div>
+  </section>
+
   <section id="about" class="section about-section">
-    <div class="about-card">
+    <div class="about-card reveal">
       <p class="eyebrow">About Vyntra Connect</p>
       <h2>About Vyntra Connect</h2>
       <p>
@@ -98,29 +110,28 @@
   </section>
 
   <section id="modes" class="section">
-    <h2>Launch Modes</h2>
-
-    <p class="section-sub">
+    <h2 class="reveal">Launch Modes</h2>
+    <p class="section-sub reveal">
       Four polished experiences to start with.
     </p>
 
     <div class="mode-grid">
-      <div class="mode-card">
+      <div class="mode-card reveal">
         <h3>Core</h3>
         <p>Clean, familiar, everyday messaging.</p>
       </div>
 
-      <div class="mode-card pulse">
+      <div class="mode-card pulse reveal">
         <h3>Pulse</h3>
         <p>Social, colourful, energetic, and expressive.</p>
       </div>
 
-      <div class="mode-card neon">
+      <div class="mode-card neon reveal">
         <h3>Neon</h3>
         <p>Futuristic, glowing, immersive, and techy.</p>
       </div>
 
-      <div class="mode-card cozy">
+      <div class="mode-card cozy reveal">
         <h3>Cozy</h3>
         <p>Warm, relaxed, personal, and soft.</p>
       </div>
@@ -128,9 +139,8 @@
   </section>
 
   <section class="section split">
-    <div>
+    <div class="reveal">
       <h2>More than messaging</h2>
-
       <p>
         Vyntra Connect is built around identity, communities,
         profiles, and custom designs.
@@ -140,11 +150,11 @@
     </div>
 
     <div class="feature-list">
-      <p>Real-time DMs</p>
-      <p>Group chats</p>
-      <p>Public discovery</p>
-      <p>Profile customisation</p>
-      <p>Mode switching</p>
+      <p class="reveal">Real-time DMs</p>
+      <p class="reveal">Group chats</p>
+      <p class="reveal">Public discovery</p>
+      <p class="reveal">Profile customisation</p>
+      <p class="reveal">Mode switching</p>
     </div>
   </section>
 
@@ -156,5 +166,8 @@
       <a href="privacy/">Privacy</a>
     </div>
   </footer>
+
+  <script type="module" src="globe.js"></script>
+  <script src="reveal.js"></script>
 </body>
 </html>
